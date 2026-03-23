@@ -1,5 +1,5 @@
 <!-- =====================================
-FRONTEND PROFISSIONAL (index.html)
+FRONTEND COM WEBCAM (index.html)
 ===================================== -->
 
 <!DOCTYPE html>
@@ -12,106 +12,69 @@ FRONTEND PROFISSIONAL (index.html)
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
 <style>
-body {
-  margin: 0;
-  font-family: Arial;
-  background: linear-gradient(135deg,#ff7eb3,#ff758c);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-  color:white;
-}
-
-.container {
-  width:95%;
-  max-width:420px;
-  background: rgba(0,0,0,0.35);
-  padding:20px;
-  border-radius:20px;
-  text-align:center;
-}
-
-.logo {
-  width:100px;
-  height:100px;
-  border:2px dashed white;
-  margin:auto;
-  margin-bottom:10px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.messages {
-  height:220px;
-  overflow-y:auto;
-  background: rgba(255,255,255,0.2);
-  padding:10px;
-  border-radius:10px;
-}
-  
-input {
-}
-
-.btn-main { background:white; color:#ff4f81; }
-.btn-next { background:#222; color:white; }
-
+body { margin:0; font-family:Arial; background:#111; color:white; text-align:center; }
+.container { padding:10px; }
+video { width:45%; border-radius:10px; margin:5px; }
+button { padding:10px; margin:5px; border:none; border-radius:10px; cursor:pointer; }
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<div class="logo">LOGO</div>
-<h2>TôCarente 😭</h2>
+<h2>TôCarente 😭 (Vídeo)</h2>
 
-<button class="btn-main" onclick="find()">Tô carente agora 😭</button>
-<button class="btn-next" onclick="next()">Próximo 🔄</button>
+<button onclick="start()">Entrar</button>
+<button onclick="next()">Próximo</button>
 
-<div class="messages" id="messages"></div>
-
-<input id="input" placeholder="Digite sua mensagem..." />
-<button onclick="send()">Enviar</button>
+<div>
+  <video id="localVideo" autoplay muted></video>
+  <video id="remoteVideo" autoplay></video>
+</div>
 
 </div>
 
 <script>
 const socket = io();
+let localStream;
+let peer;
 
-function find(){
-  add('Sistema','Procurando alguém...');
+async function start(){
+  localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+  document.getElementById('localVideo').srcObject = localStream;
+
   socket.emit('find');
 }
 
-socket.on('chatStart', ()=>{
-  add('Sistema','Conectado com alguém!');
+socket.on('chatStart', async ()=>{
+  createPeer(true);
 });
 
-socket.on('message', msg=>{
-  add('Estranho', msg);
+socket.on('signal', data=>{
+  peer.signal(data);
 });
 
-function send(){
-  const input = document.getElementById('input');
-  if(input.value.trim()){
-    add('Você', input.value);
-    socket.emit('message', input.value);
-    input.value='';
-  }
+function createPeer(initiator){
+  peer = new SimplePeer({ initiator, trickle:false, stream:localStream });
+
+  peer.on('signal', data=>{
+    socket.emit('signal', data);
+  });
+
+  peer.on('stream', stream=>{
+    document.getElementById('remoteVideo').srcObject = stream;
+  });
 }
 
 function next(){
-  add('Sistema','Procurando novo usuário...');
   socket.emit('next');
-}
-
-function add(user,text){
-  const div = document.getElementById('messages');
-  div.innerHTML += `<p><b>${user}:</b> ${text}</p>`;
-  div.scrollTop = div.scrollHeight;
+  location.reload();
 }
 </script>
 
+<!-- SimplePeer CDN -->
+<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+
 </body>
 </html>
+
