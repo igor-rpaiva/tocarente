@@ -1,5 +1,5 @@
 // =====================================
-// SERVIDOR PROFISSIONAL (server.js)
+// SERVIDOR (server.js) - SUPORTE A VÍDEO
 // =====================================
 
 const express = require('express');
@@ -28,22 +28,20 @@ function matchUsers() {
 }
 
 io.on('connection', (socket) => {
-  console.log('Conectado:', socket.id);
-
   socket.on('find', () => {
     waitingUsers.push(socket);
     matchUsers();
   });
 
-  socket.on('message', (msg) => {
+  socket.on('signal', (data) => {
     if (socket.partner) {
-      socket.partner.emit('message', msg);
+      socket.partner.emit('signal', data);
     }
   });
 
   socket.on('next', () => {
     if (socket.partner) {
-      socket.partner.emit('message', 'Usuário saiu. Procurando outro...');
+      socket.partner.emit('message', 'Usuário saiu...');
       socket.partner.partner = null;
       waitingUsers.push(socket.partner);
     }
@@ -64,7 +62,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  console.log('Servidor rodando na porta', PORT);
-});
+server.listen(PORT);
