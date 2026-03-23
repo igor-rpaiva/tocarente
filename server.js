@@ -28,6 +28,8 @@ function matchUsers() {
 }
 
 io.on('connection', (socket) => {
+
+  socket.on('find', () => {
     if (!waitingUsers.includes(socket)) {
       waitingUsers.push(socket);
       matchUsers();
