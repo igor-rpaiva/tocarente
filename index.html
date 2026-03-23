@@ -1,5 +1,5 @@
 <!-- =====================================
-FRONTEND COM WEBCAM (index.html)
+FRONTEND (index.html) - VÍDEO + TEXTO
 ===================================== -->
 
 <!DOCTYPE html>
@@ -10,19 +10,19 @@ FRONTEND COM WEBCAM (index.html)
 <title>TôCarente</title>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
 
 <style>
 body { margin:0; font-family:Arial; background:#111; color:white; text-align:center; }
-.container { padding:10px; }
 video { width:45%; border-radius:10px; margin:5px; }
+.messages { height:120px; overflow:auto; background:#222; margin:10px; padding:10px; border-radius:10px; text-align:left; }
+input { width:80%; padding:10px; border-radius:10px; border:none; }
 button { padding:10px; margin:5px; border:none; border-radius:10px; cursor:pointer; }
 </style>
 </head>
 
 <body>
-<div class="container">
-
-<h2>TôCarente 😭 (Vídeo)</h2>
+<h2>TôCarente 😭</h2>
 
 <button onclick="start()">Entrar</button>
 <button onclick="next()">Próximo</button>
@@ -32,7 +32,9 @@ button { padding:10px; margin:5px; border:none; border-radius:10px; cursor:point
   <video id="remoteVideo" autoplay></video>
 </div>
 
-</div>
+<div class="messages" id="messages"></div>
+<input id="msgInput" placeholder="Digite..." />
+<button onclick="sendMsg()">Enviar</button>
 
 <script>
 const socket = io();
@@ -46,12 +48,22 @@ async function start(){
   socket.emit('find');
 }
 
-socket.on('chatStart', async ()=>{
+socket.on('chatStart', ()=>{
+  add('Sistema','Conectado!');
   createPeer(true);
 });
 
 socket.on('signal', data=>{
-  peer.signal(data);
+  if(peer) peer.signal(data);
+});
+
+socket.on('message', msg=>{
+  add('Estranho', msg);
+});
+
+socket.on('partnerLeft', ()=>{
+  add('Sistema','Parceiro saiu...');
+  if(peer) peer.destroy();
 });
 
 function createPeer(initiator){
@@ -67,14 +79,26 @@ function createPeer(initiator){
 }
 
 function next(){
+  add('Sistema','Procurando outro...');
+  if(peer) peer.destroy();
   socket.emit('next');
-  location.reload();
+}
+
+function sendMsg(){
+  const input = document.getElementById('msgInput');
+  if(input.value.trim()){
+    add('Você', input.value);
+    socket.emit('message', input.value);
+    input.value='';
+  }
+}
+
+function add(user,text){
+  const div = document.getElementById('messages');
+  div.innerHTML += `<p><b>${user}:</b> ${text}</p>`;
+  div.scrollTop = div.scrollHeight;
 }
 </script>
 
-<!-- SimplePeer CDN -->
-<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
-
 </body>
 </html>
-
