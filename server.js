@@ -22,14 +22,12 @@ function matchUsers() {
     user1.partner = user2;
     user2.partner = user1;
 
-    user1.emit('chatStart');
-    user2.emit('chatStart');
+    user1.emit('chatStart', true);
+    user2.emit('chatStart', false);
   }
 }
 
 io.on('connection', (socket) => {
-
-  socket.on('find', () => {
     if (!waitingUsers.includes(socket)) {
       waitingUsers.push(socket);
       matchUsers();
