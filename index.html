@@ -37,16 +37,26 @@ button { padding:10px; margin:5px; border:none; border-radius:10px; cursor:point
 <button onclick="sendMsg()">Enviar</button>
 
 <script>
-  add('Estranho', msg);
-});
+        //   credential: 'senha'
+        // }
+      ]
+    }
+  });
 
-socket.on('partnerLeft', ()=>{
-  add('Sistema','Parceiro saiu...');
-  if(peer) peer.destroy();
-});
+  peer.on('signal', data=>{
+    socket.emit('signal', data);
+  });
 
-function createPeer(initiator){
-  peer = new SimplePeer({ initiator, trickle:false, stream:localStream });
+  peer.on('stream', stream=>{
+    document.getElementById('remoteVideo').srcObject = stream;
+  });
+
+  peer.on('error', err=>{
+    console.error('Erro no peer:', err);
+    add('Sistema','Erro na conexão de vídeo');
+  });
+}
+);
 
   peer.on('signal', data=>{
     socket.emit('signal', data);
