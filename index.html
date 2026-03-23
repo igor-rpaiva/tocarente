@@ -37,27 +37,6 @@ button { padding:10px; margin:5px; border:none; border-radius:10px; cursor:point
 <button onclick="sendMsg()">Enviar</button>
 
 <script>
-const socket = io();
-let localStream;
-let peer;
-
-async function start(){
-  localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-  document.getElementById('localVideo').srcObject = localStream;
-
-  socket.emit('find');
-}
-
-socket.on('chatStart', ()=>{
-  add('Sistema','Conectado!');
-  createPeer(true);
-});
-
-socket.on('signal', data=>{
-  if(peer) peer.signal(data);
-});
-
-socket.on('message', msg=>{
   add('Estranho', msg);
 });
 
