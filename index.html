@@ -45,3 +45,73 @@ body {
 
 .messages {
   height:220px;
+  overflow-y:auto;
+  background: rgba(255,255,255,0.2);
+  padding:10px;
+  border-radius:10px;
+}
+  
+input {
+}
+
+.btn-main { background:white; color:#ff4f81; }
+.btn-next { background:#222; color:white; }
+
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="logo">LOGO</div>
+<h2>TôCarente 😭</h2>
+
+<button class="btn-main" onclick="find()">Tô carente agora 😭</button>
+<button class="btn-next" onclick="next()">Próximo 🔄</button>
+
+<div class="messages" id="messages"></div>
+
+<input id="input" placeholder="Digite sua mensagem..." />
+<button onclick="send()">Enviar</button>
+
+</div>
+
+<script>
+const socket = io();
+
+function find(){
+  add('Sistema','Procurando alguém...');
+  socket.emit('find');
+}
+
+socket.on('chatStart', ()=>{
+  add('Sistema','Conectado com alguém!');
+});
+
+socket.on('message', msg=>{
+  add('Estranho', msg);
+});
+
+function send(){
+  const input = document.getElementById('input');
+  if(input.value.trim()){
+    add('Você', input.value);
+    socket.emit('message', input.value);
+    input.value='';
+  }
+}
+
+function next(){
+  add('Sistema','Procurando novo usuário...');
+  socket.emit('next');
+}
+
+function add(user,text){
+  const div = document.getElementById('messages');
+  div.innerHTML += `<p><b>${user}:</b> ${text}</p>`;
+  div.scrollTop = div.scrollHeight;
+}
+</script>
+
+</body>
+</html>
