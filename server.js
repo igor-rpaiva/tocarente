@@ -1,5 +1,5 @@
 // =====================================
-// SERVIDOR (server.js) - SUPORTE A VÍDEO
+// SERVER (server.js) - CORRIGIDO
 // =====================================
 
 const express = require('express');
@@ -15,7 +15,7 @@ app.use(express.static(__dirname));
 let waitingUsers = [];
 
 function matchUsers() {
-  if (waitingUsers.length >= 2) {
+  while (waitingUsers.length >= 2) {
     const user1 = waitingUsers.shift();
     const user2 = waitingUsers.shift();
 
@@ -28,9 +28,18 @@ function matchUsers() {
 }
 
 io.on('connection', (socket) => {
+
   socket.on('find', () => {
-    waitingUsers.push(socket);
-    matchUsers();
+    if (!waitingUsers.includes(socket)) {
+      waitingUsers.push(socket);
+      matchUsers();
+    }
+  });
+
+  socket.on('message', (msg) => {
+    if (socket.partner) {
+      socket.partner.emit('message', msg);
+    }
   });
 
   socket.on('signal', (data) => {
@@ -41,19 +50,23 @@ io.on('connection', (socket) => {
 
   socket.on('next', () => {
     if (socket.partner) {
-      socket.partner.emit('message', 'Usuário saiu...');
+      socket.partner.emit('partnerLeft');
       socket.partner.partner = null;
       waitingUsers.push(socket.partner);
     }
 
     socket.partner = null;
-    waitingUsers.push(socket);
+
+    if (!waitingUsers.includes(socket)) {
+      waitingUsers.push(socket);
+    }
+
     matchUsers();
   });
 
   socket.on('disconnect', () => {
     if (socket.partner) {
-      socket.partner.emit('message', 'Usuário desconectou');
+      socket.partner.emit('partnerLeft');
       socket.partner.partner = null;
     }
 
