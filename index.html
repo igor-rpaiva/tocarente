@@ -37,7 +37,6 @@ button { padding:10px; margin:5px; border:none; border-radius:10px; cursor:point
 <button onclick="sendMsg()">Enviar</button>
 
 <script>
-
 const socket = io();
 let localStream;
 let peer;
@@ -68,13 +67,16 @@ socket.on('partnerLeft', ()=>{
 });
 
 function createPeer(initiator){
-  peer = new SimplePeer({
-    initiator,
-    trickle: false,
-    stream: localStream,
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
+  peer = new SimplePeer({ initiator, trickle:false, stream:localStream });
+
+  peer.on('signal', data=>{
+    socket.emit('signal', data);
+  });
+
+  peer.on('stream', stream=>{
+    document.getElementById('remoteVideo').srcObject = stream;
+  });
+},
         { urls: 'stun:global.stun.twilio.com:3478' }
         // Para produção, adicione TURN (exige conta):
         // {
