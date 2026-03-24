@@ -1,7 +1,8 @@
 // =====================================
-// SERVER (server.js) - CORRIGIDO
+// ESTRUTURA FINAL: 2 TELAS (HOME + CHAT)
 // =====================================
 
+// ================= SERVER (sem mudanças grandes) =================
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -16,19 +17,18 @@ let waitingUsers = [];
 
 function matchUsers() {
   while (waitingUsers.length >= 2) {
-    const user1 = waitingUsers.shift();
-    const user2 = waitingUsers.shift();
+    const u1 = waitingUsers.shift();
+    const u2 = waitingUsers.shift();
 
-    user1.partner = user2;
-    user2.partner = user1;
+    u1.partner = u2;
+    u2.partner = u1;
 
-    user1.emit('chatStart', true);
-    user2.emit('chatStart', false);
+    u1.emit('chatStart', true);
+    u2.emit('chatStart', false);
   }
 }
 
 io.on('connection', (socket) => {
-
   socket.on('find', () => {
     if (!waitingUsers.includes(socket)) {
       waitingUsers.push(socket);
@@ -37,15 +37,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('message', (msg) => {
-    if (socket.partner) {
-      socket.partner.emit('message', msg);
-    }
+    if (socket.partner) socket.partner.emit('message', msg);
   });
 
   socket.on('signal', (data) => {
-    if (socket.partner) {
-      socket.partner.emit('signal', data);
-    }
+    if (socket.partner) socket.partner.emit('signal', data);
   });
 
   socket.on('next', () => {
@@ -57,10 +53,7 @@ io.on('connection', (socket) => {
 
     socket.partner = null;
 
-    if (!waitingUsers.includes(socket)) {
-      waitingUsers.push(socket);
-    }
-
+    if (!waitingUsers.includes(socket)) waitingUsers.push(socket);
     matchUsers();
   });
 
@@ -69,11 +62,12 @@ io.on('connection', (socket) => {
       socket.partner.emit('partnerLeft');
       socket.partner.partner = null;
     }
-
     waitingUsers = waitingUsers.filter(u => u !== socket);
   });
-
 });
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
