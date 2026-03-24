@@ -1,7 +1,4 @@
-<!-- =====================================
-FRONTEND (index.html) - VÍDEO + TEXTO
-===================================== -->
-
+<!-- ================= FRONTEND ================= -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -13,104 +10,181 @@ FRONTEND (index.html) - VÍDEO + TEXTO
 <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
 
 <style>
-body { margin:0; font-family:Arial; background:#111; color:white; text-align:center; }
-video { width:45%; border-radius:10px; margin:5px; }
-.messages { height:120px; overflow:auto; background:#222; margin:10px; padding:10px; border-radius:10px; text-align:left; }
-input { width:80%; padding:10px; border-radius:10px; border:none; }
-button { padding:10px; margin:5px; border:none; border-radius:10px; cursor:pointer; }
+body { margin:0; font-family:Arial; background:#f2f2f2; }
+
+.center { text-align:center; }
+.hidden { display:none; }
+
+.logo img { width:300px; cursor:pointer; }
+
+/* HOME */
+#home { padding:40px; }
+
+.home-box {
+  background:#f6dfe3;
+  padding:30px;
+  border-radius:20px;
+  max-width:500px;
+  margin:auto;
+}
+
+button {
+  padding:12px 20px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  margin-top:10px;
+}
+
+/* CHAT */
+#chat { padding:10px; }
+
+.videos {
+  display:flex;
+  justify-content:center;
+  gap:20px;
+}
+
+video {
+  width:40%;
+  height:250px;
+  background:#ddd;
+  border-radius:10px;
+}
+
+.messages {
+  height:120px;
+  background:#fff;
+  overflow:auto;
+  padding:10px;
+  border-radius:10px;
+  margin-top:10px;
+}
+
+input { width:70%; padding:10px; }
 </style>
 </head>
 
 <body>
-<h2>TôCarente 😭</h2>
 
-<button onclick="start()">Entrar</button>
-<button onclick="next()">Próximo</button>
+<!-- HOME -->
+<div id="home" class="center">
+  <div class="logo">
+    <img src="logo.png">
+  </div>
 
-<div>
-  <video id="localVideo" autoplay muted></video>
-  <video id="remoteVideo" autoplay></video>
+  <div class="home-box">
+    <p><b>Está se sentindo carente?</b><br>
+    Entre agora mesmo e saia do tédio.</p>
+
+    <label>
+      <input type="checkbox" id="ageCheck"> Tenho mais de 18 anos
+    </label>
+
+    <br>
+    <button onclick="enterSite()">Entrar</button>
+  </div>
 </div>
 
-<div class="messages" id="messages"></div>
-<input id="msgInput" placeholder="Digite..." />
-<button onclick="sendMsg()">Enviar</button>
+<!-- CHAT -->
+<div id="chat" class="hidden">
+  <div class="center logo">
+    <img src="logo.png" onclick="goHome()">
+  </div>
+
+  <div class="videos">
+    <video id="localVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
+  </div>
+
+  <div class="center" id="status">Procurando alguém...</div>
+
+  <div class="center">
+    <button onclick="next()">Próximo</button>
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="center">
+    <input id="msgInput" placeholder="Digite...">
+    <button onclick="sendMsg()">Enviar</button>
+  </div>
+</div>
 
 <script>
 const socket = io();
+let localStream, peer;
 
-let localStream;
-let peer;
-
-async function start(){
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true
-    });
-
-    document.getElementById('localVideo').srcObject = localStream;
-
-    socket.emit('find');
-
-  } catch (err) {
-    console.error(err);
-    alert('Erro ao acessar câmera: ' + err.message);
+function enterSite(){
+  if(!document.getElementById('ageCheck').checked){
+    alert('Você precisa ser maior de 18 anos');
+    return;
   }
+
+  document.getElementById('home').classList.add('hidden');
+  document.getElementById('chat').classList.remove('hidden');
+
+  start();
 }
 
-socket.on('chatStart', (isInitiator)=>{
-  createPeer(isInitiator);
+function goHome(){ location.reload(); }
+
+async function start(){
+  localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+  document.getElementById('localVideo').srcObject = localStream;
+  socket.emit('find');
+}
+
+socket.on('chatStart', (init)=>{
+  document.getElementById('status').innerText = 'Conectado!';
+  createPeer(init);
 });
 
 socket.on('signal', data=>{
   if(peer) peer.signal(data);
 });
 
-socket.on('message', msg=>{
-  add('Estranho', msg);
-});
+socket.on('message', msg=> add('Estranho', msg));
 
 socket.on('partnerLeft', ()=>{
-  add('Sistema','Parceiro saiu...');
+  document.getElementById('status').innerText = 'Desconectado';
   if(peer) peer.destroy();
 });
 
 function createPeer(initiator){
-  peer = new SimplePeer({
-    initiator: initiator,
-    trickle: false,
-    stream: localStream
-  });
+  peer = new SimplePeer({ initiator, trickle:false, stream:localStream });
 
-  peer.on('signal', data=>{
-    socket.emit('signal', data);
-  });
+  peer.on('signal', d=> socket.emit('signal', d));
 
-  peer.on('stream', stream=>{
-    document.getElementById('remoteVideo').srcObject = stream;
+  peer.on('stream', s=>{
+    document.getElementById('remoteVideo').srcObject = s;
   });
 }
 
 function next(){
   if(peer) peer.destroy();
   socket.emit('next');
+  document.getElementById('status').innerText = 'Procurando outro...';
 }
 
 function sendMsg(){
-  const input = document.getElementById('msgInput');
-  if(input.value.trim()){
-    add('Você', input.value);
-    socket.emit('message', input.value);
-    input.value='';
+  const i = document.getElementById('msgInput');
+  if(i.value.trim()){
+    add('Você', i.value);
+    socket.emit('message', i.value);
+    i.value='';
   }
 }
 
-function add(user,text){
-  const div = document.getElementById('messages');
-  div.innerHTML += `<p><b>${user}:</b> ${text}</p>`;
-  div.scrollTop = div.scrollHeight;
+function add(u,t){
+  const d = document.getElementById('messages');
+  d.innerHTML += `<p><b>${u}:</b> ${t}</p>`;
+  d.scrollTop = d.scrollHeight;
 }
+</script>
+
+</body>
+</html>
 </script>
 
 </body>
