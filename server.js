@@ -29,6 +29,7 @@ function matchUsers() {
 }
 
 io.on('connection', (socket) => {
+
   socket.on('find', () => {
     if (!waitingUsers.includes(socket)) {
       waitingUsers.push(socket);
@@ -37,11 +38,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('message', (msg) => {
-    if (socket.partner) socket.partner.emit('message', msg);
+    if (socket.partner) {
+      socket.partner.emit('message', msg);
+    }
   });
 
   socket.on('signal', (data) => {
-    if (socket.partner) socket.partner.emit('signal', data);
+    if (socket.partner) {
+      socket.partner.emit('signal', data);
+    }
   });
 
   socket.on('next', () => {
@@ -53,7 +58,10 @@ io.on('connection', (socket) => {
 
     socket.partner = null;
 
-    if (!waitingUsers.includes(socket)) waitingUsers.push(socket);
+    if (!waitingUsers.includes(socket)) {
+      waitingUsers.push(socket);
+    }
+
     matchUsers();
   });
 
@@ -62,12 +70,11 @@ io.on('connection', (socket) => {
       socket.partner.emit('partnerLeft');
       socket.partner.partner = null;
     }
+
     waitingUsers = waitingUsers.filter(u => u !== socket);
   });
-});
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT);
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
