@@ -1,190 +1,59 @@
-<!-- ================= FRONTEND ================= -->
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TôCarente</title>
-
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
-
 <style>
-body { margin:0; font-family:Arial; background:#f2f2f2; }
-
-.center { text-align:center; }
-.hidden { display:none; }
-
-.logo img { width:300px; cursor:pointer; }
-
-/* HOME */
-#home { padding:40px; }
-
-.home-box {
-  background:#f6dfe3;
-  padding:30px;
-  border-radius:20px;
-  max-width:500px;
-  margin:auto;
-}
-
-button {
-  padding:12px 20px;
-  border:none;
-  border-radius:10px;
-  cursor:pointer;
-  margin-top:10px;
-}
-
-/* CHAT */
-#chat { padding:10px; }
-
-.videos {
-  display:flex;
-  justify-content:center;
-  gap:20px;
-}
-
-video {
-  width:40%;
-  height:250px;
-  background:#ddd;
-  border-radius:10px;
-}
-
-.messages {
-  height:120px;
-  background:#fff;
-  overflow:auto;
-  padding:10px;
-  border-radius:10px;
-  margin-top:10px;
-}
-
-input { width:70%; padding:10px; }
+body { text-align:center; font-family:Arial; }
+.logo img { width:250px; margin-top:40px; }
 </style>
 </head>
-
 <body>
 
-<!-- HOME -->
-<div id="home" class="center">
-  <div class="logo">
-    <img src="logo.png">
-  </div>
-
-  <div class="home-box">
-    <p><b>Está se sentindo carente?</b><br>
-    Entre agora mesmo e saia do tédio.</p>
-
-    <label>
-      <input type="checkbox" id="ageCheck"> Tenho mais de 18 anos
-    </label>
-
-    <br>
-    <button onclick="enterSite()">Entrar</button>
-  </div>
+<div class="logo">
+  <img src="logo.png">
 </div>
 
-<!-- CHAT -->
-<div id="chat" class="hidden">
-  <div class="center logo">
-    <img src="logo.png" onclick="goHome()">
-  </div>
+<h3>+18 obrigatório</h3>
+<input type="checkbox" id="age"> Tenho mais de 18 anos
 
-  <div class="videos">
-    <video id="localVideo" autoplay muted></video>
-    <video id="remoteVideo" autoplay></video>
-  </div>
+<h3>Login</h3>
+<input id="email" placeholder="email"><br><br>
+<input id="senha" placeholder="senha"><br><br>
 
-  <div class="center" id="status">Procurando alguém...</div>
-
-  <div class="center">
-    <button onclick="next()">Próximo</button>
-  </div>
-
-  <div class="messages" id="messages"></div>
-
-  <div class="center">
-    <input id="msgInput" placeholder="Digite...">
-    <button onclick="sendMsg()">Enviar</button>
-  </div>
-</div>
+<button onclick="login()">Entrar</button>
+<button onclick="register()">Cadastrar</button>
 
 <script>
-const socket = io();
-let localStream, peer;
+async function login(){
+  if(!age.checked) return alert('Confirme +18');
 
-function enterSite(){
-  if(!document.getElementById('ageCheck').checked){
-    alert('Você precisa ser maior de 18 anos');
-    return;
-  }
-
-  document.getElementById('home').classList.add('hidden');
-  document.getElementById('chat').classList.remove('hidden');
-
-  start();
-}
-
-function goHome(){ location.reload(); }
-
-async function start(){
-  localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-  document.getElementById('localVideo').srcObject = localStream;
-  socket.emit('find');
-}
-
-socket.on('chatStart', (init)=>{
-  document.getElementById('status').innerText = 'Conectado!';
-  createPeer(init);
-});
-
-socket.on('signal', data=>{
-  if(peer) peer.signal(data);
-});
-
-socket.on('message', msg=> add('Estranho', msg));
-
-socket.on('partnerLeft', ()=>{
-  document.getElementById('status').innerText = 'Desconectado';
-  if(peer) peer.destroy();
-});
-
-function createPeer(initiator){
-  peer = new SimplePeer({ initiator, trickle:false, stream:localStream });
-
-  peer.on('signal', d=> socket.emit('signal', d));
-
-  peer.on('stream', s=>{
-    document.getElementById('remoteVideo').srcObject = s;
+  const res = await fetch('/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      email: email.value,
+      senha: senha.value
+    })
   });
+
+  const user = await res.json();
+  localStorage.setItem('userId', user._id);
+
+  window.location = '/chat.html';
 }
 
-function next(){
-  if(peer) peer.destroy();
-  socket.emit('next');
-  document.getElementById('status').innerText = 'Procurando outro...';
-}
+async function register(){
+  await fetch('/register',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      email: email.value,
+      senha: senha.value
+    })
+  });
 
-function sendMsg(){
-  const i = document.getElementById('msgInput');
-  if(i.value.trim()){
-    add('Você', i.value);
-    socket.emit('message', i.value);
-    i.value='';
-  }
+  alert('Conta criada');
 }
-
-function add(u,t){
-  const d = document.getElementById('messages');
-  d.innerHTML += `<p><b>${u}:</b> ${t}</p>`;
-  d.scrollTop = d.scrollHeight;
-}
-</script>
-
-</body>
-</html>
 </script>
 
 </body>

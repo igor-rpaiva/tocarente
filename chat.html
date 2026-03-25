@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chat</title>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+
+<style>
+body { text-align:center; font-family:Arial; }
+video { width:40%; background:#ddd; margin:10px; }
+.logo img { width:200px; }
+</style>
+</head>
+<body>
+
+<div class="logo">
+  <img src="logo.png" onclick="location.href='/'">
+</div>
+
+<h2>Saldo: <span id="saldo">0</span></h2>
+
+<video id="localVideo" autoplay muted></video>
+<video id="remoteVideo" autoplay></video>
+
+<br>
+
+<button onclick="emoji(1)">💖</button>
+<button onclick="emoji(5)">🔥</button>
+<button onclick="emoji(10)">💸</button>
+
+<br><br>
+
+<button onclick="next()">Próximo</button>
+
+<div id="msgs"></div>
+
+<script>
+const socket = io();
+let peer, localStream;
+
+const userId = localStorage.getItem('userId');
+socket.emit('auth', userId);
+
+async function start(){
+  localStream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+  localVideo.srcObject = localStream;
+  socket.emit('find');
+}
+
+start();
+
+socket.on('chatStart', init => createPeer(init));
+
+socket.on('signal', data=>{
+  if(peer) peer.signal(data);
+});
+
+socket.on('saldo', s=>{
+  saldo.innerText = s;
+});
+
+socket.on('message', m=>{
+  msgs.innerHTML += '<p>'+m+'</p>';
+});
+
+function createPeer(init){
+  peer = new SimplePeer({ initiator:init, trickle:false, stream:localStream });
+
+  peer.on('signal', d=> socket.emit('signal', d));
+
+  peer.on('stream', s=>{
+    remoteVideo.srcObject = s;
+  });
+}
+
+function emoji(v){
+  socket.emit('emoji', v);
+}
+
+function next(){
+  if(peer) peer.destroy();
+  socket.emit('next');
+}
+</script>
+
+</body>
+</html>

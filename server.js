@@ -1,45 +1,90 @@
-// =====================================
-// ESTRUTURA FINAL: 2 TELAS (HOME + CHAT)
-// =====================================
-
-// ================= SERVER (sem mudanças grandes) =================
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(__dirname));
+app.use(express.json());
 
-let waitingUsers = [];
+// 🔥 MongoDB Atlas (coloque sua URL no Render)
+mongoose.connect(process.env.MONGO_URI);
 
-function matchUsers() {
-  while (waitingUsers.length >= 2) {
-    const u1 = waitingUsers.shift();
-    const u2 = waitingUsers.shift();
+// MODELO
+const User = mongoose.model('User', {
+  email: String,
+  senha: String,
+  creditos: { type: Number, default: 0 }
+});
 
-    u1.partner = u2;
-    u2.partner = u1;
+// ===== LOGIN =====
+app.post('/register', async (req, res) => {
+  const user = await User.create(req.body);
+  res.json(user);
+});
 
-    u1.emit('chatStart', true);
-    u2.emit('chatStart', false);
+app.post('/login', async (req, res) => {
+  const user = await User.findOne(req.body);
+  if (!user) return res.status(401).send('Erro');
+  res.json(user);
+});
+
+// ===== DEPÓSITO (PIX manual) =====
+app.post('/deposito', async (req, res) => {
+  const { userId, valor } = req.body;
+
+  await User.findByIdAndUpdate(userId, {
+    $inc: { creditos: valor }
+  });
+
+  res.send('ok');
+});
+
+// ===== SAQUE =====
+app.post('/saque', async (req, res) => {
+  const { userId, creditos } = req.body;
+
+  const user = await User.findById(userId);
+
+  if (user.creditos < creditos)
+    return res.send('Saldo insuficiente');
+
+  user.creditos -= creditos;
+  await user.save();
+
+  res.send('Saque solicitado');
+});
+
+// ===== CHAT =====
+let waiting = [];
+
+function match() {
+  while (waiting.length >= 2) {
+    const a = waiting.shift();
+    const b = waiting.shift();
+
+    a.partner = b;
+    b.partner = a;
+
+    a.emit('chatStart', true);
+    b.emit('chatStart', false);
   }
 }
 
 io.on('connection', (socket) => {
 
-  socket.on('find', () => {
-    if (!waitingUsers.includes(socket)) {
-      waitingUsers.push(socket);
-      matchUsers();
-    }
+  socket.on('auth', async (userId) => {
+    socket.user = await User.findById(userId);
+    socket.emit('saldo', socket.user.creditos);
   });
 
-  socket.on('message', (msg) => {
-    if (socket.partner) {
-      socket.partner.emit('message', msg);
+  socket.on('find', () => {
+    if (!waiting.includes(socket)) {
+      waiting.push(socket);
+      match();
     }
   });
 
@@ -49,34 +94,38 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('emoji', async (valor) => {
+    if (!socket.user || !socket.partner) return;
+
+    if (socket.user.creditos >= valor) {
+
+      socket.user.creditos -= valor;
+      await socket.user.save();
+
+      socket.partner.user.creditos += valor;
+      await socket.partner.user.save();
+
+      socket.emit('saldo', socket.user.creditos);
+      socket.partner.emit('saldo', socket.partner.user.creditos);
+
+      socket.partner.emit('message', `Recebeu ${valor} créditos`);
+    }
+  });
+  
   socket.on('next', () => {
     if (socket.partner) {
       socket.partner.emit('partnerLeft');
       socket.partner.partner = null;
-      waitingUsers.push(socket.partner);
+      waiting.push(socket.partner);
     }
 
     socket.partner = null;
 
-    if (!waitingUsers.includes(socket)) {
-      waitingUsers.push(socket);
-    }
-
-    matchUsers();
-  });
-
-  socket.on('disconnect', () => {
-    if (socket.partner) {
-      socket.partner.emit('partnerLeft');
-      socket.partner.partner = null;
-    }
-
-    waitingUsers = waitingUsers.filter(u => u !== socket);
+    if (!waiting.includes(socket)) waiting.push(socket);
+    match();
   });
 
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log('Servidor rodando na porta', PORT);
-});
+server.listen(PORT, () => console.log('Rodando...'));
